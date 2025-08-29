@@ -112,6 +112,24 @@ def get_resource_map(categories_dir, repo_base_url, resource_type, file_extensio
 
     return resource_map
 
+def generate_categories_list(categories_dir):
+    """Generate a list of categories dynamically from the directory structure."""
+    categories = []
+
+    # Get all directories in the categories folder
+    for item in sorted(os.listdir(categories_dir)):
+        item_path = os.path.join(categories_dir, item)
+        if os.path.isdir(item_path):
+            # Convert kebab-case to Title Case for display name
+            # e.g., 'energetic-dynamic' -> 'Energetic Dynamic'
+            display_name = ' & '.join(word.capitalize() for word in item.split('-'))
+            categories.append({
+                'id': item,
+                'name': display_name
+            })
+
+    return categories
+
 def main():
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -119,11 +137,21 @@ def main():
     # Set the categories directory
     categories_dir = os.path.join(script_dir, 'categories')
 
+    # --- Generate Categories List ---
+    print("Generating categories list...")
+    categories_list = generate_categories_list(categories_dir)
+
+    # Write the categories list to a JSON file
+    categories_output_file = os.path.join(script_dir, 'categories.json')
+    with open(categories_output_file, 'w') as f:
+        json.dump(categories_list, f, indent=2)
+    print(f"Categories list generated successfully at: {categories_output_file}")
+
     # Get the repository base URL
     repo_base_url = get_repo_base_url()
 
     # --- Generate Audio Map ---
-    print("Generating audio map...")
+    print("\nGenerating audio map...")
     audio_map = get_resource_map(
         categories_dir,
         repo_base_url,

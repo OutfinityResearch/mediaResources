@@ -1,0 +1,22 @@
+[
+  {
+    "id": "energetic-dynamic",
+    "name": "Energetic & Dynamic"
+  },
+  {
+    "id": "melancholic-reflective",
+    "name": "Melancholic & Reflective"
+  },
+  {
+    "id": "peaceful-calming",
+    "name": "Peaceful & Calming"
+  },
+  {
+    "id": "playful-creative",
+    "name": "Playful & Creative"
+  },
+  {
+    "id": "spiritual-mystic",
+    "name": "Spiritual & Mystic"
+  }
+]
