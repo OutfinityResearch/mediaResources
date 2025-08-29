@@ -4,7 +4,7 @@ import re
 import subprocess
 from pathlib import Path
 
-def create_meaningful_key(filename):
+def create_meaningful_key(filename, resource_type='audio'):
     """Extract meaningful text from filename and create a clean key."""
     # Remove file extension and convert to lowercase
     name = os.path.splitext(filename)[0].lower()
@@ -13,9 +13,12 @@ def create_meaningful_key(filename):
     name = re.sub(r'[^a-z\s]', ' ', name)
 
     # Remove common words that don't add meaning
-    common_words = {'background', 'music', 'for', 'and', 'the', 'with', 'from', 'that', 'this',
-                   'short', 'video', 'vlog', 'ad', 'advertising', 'sound', 'effect', 'track',
-                   'free', 'copyright', 'royalty', 'no', 'of', 'in', 'on', 'at', 'to', 'by', 'a', 'an'}
+    common_words = {
+        'background', 'music', 'for', 'and', 'the', 'with', 'from', 'that', 'this',
+        'short', 'video', 'vlog', 'ad', 'advertising', 'sound', 'effect', 'track',
+        'free', 'copyright', 'royalty', 'no', 'of', 'in', 'on', 'at', 'to', 'by', 'a', 'an',
+        'animation', 'anim', 'js', 'motion', 'graphics'
+    }
 
     # Split into words, filter out common words and empty strings
     words = [word for word in name.split() if word and word not in common_words]
@@ -30,14 +33,14 @@ def create_meaningful_key(filename):
     if not words:
         import hashlib
         hash_str = hashlib.md5(filename.encode()).hexdigest()[:6]
-        return f"audio_{hash_str}"
+        return f"{resource_type[:4]}_{hash_str}"
 
     # Join with underscores for better readability
     key = '_'.join(words)
 
     # Ensure the key is not a common placeholder
     if key in {'untitled', 'null', 'undefined', 'none', 'empty', 'default'}:
-        key = f"audio_{key}"
+        key = f"{resource_type[:4]}_{key}"
 
     return key
 
@@ -53,41 +56,42 @@ def get_repo_base_url():
         # Convert SSH to HTTPS if needed
         if repo_url.startswith('git@github.com:'):
             repo_path = repo_url.replace('git@github.com:', '').replace('.git', '')
-            return f'https://raw.githubusercontent.com/{repo_path}/master'
+            return f'https://raw.githubusercontent.com/{repo_path}/main'
         elif repo_url.startswith('https://github.com/'):
             repo_path = repo_url.replace('https://github.com/', '').replace('.git', '')
-            return f'https://raw.githubusercontent.com/{repo_path}/master'
+            return f'https://raw.githubusercontent.com/{repo_path}/main'
     except (subprocess.CalledProcessError, Exception) as e:
         print(f"Warning: Could not determine repository URL: {e}")
 
     # Fallback to the hardcoded URL if git command fails
-    return 'https://raw.githubusercontent.com/OutfinityResearch/mediaResources/master'
+    return 'https://raw.githubusercontent.com/OutfinityResearch/mediaResources/main'
 
-def get_audio_map(audio_dir, repo_base_url):
-    audio_map = {}
+def get_resource_map(categories_dir, repo_base_url, resource_type, file_extensions):
+    """Generate a map for a specific resource type (e.g., audio, animations)."""
+    resource_map = {}
 
     # Walk through the categories directory
-    for category_dir in os.listdir(audio_dir):
-        category_path = os.path.join(audio_dir, category_dir)
+    for category_dir in os.listdir(categories_dir):
+        category_path = os.path.join(categories_dir, category_dir)
         if not os.path.isdir(category_path):
             continue
 
-        audio_dir_path = os.path.join(category_path, 'audio')
+        resource_dir_path = os.path.join(category_path, resource_type)
 
-        # Skip if audio directory doesn't exist
-        if not os.path.exists(audio_dir_path):
+        # Skip if resource directory doesn't exist
+        if not os.path.exists(resource_dir_path):
             continue
 
         category_map = {}
         used_keys = set()
 
-        # Get all audio files in the category's audio directory
+        # Get all resource files in the category's resource directory
         try:
-            audio_files = [f for f in os.listdir(audio_dir_path)
-                         if f.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a'))]
+            resource_files = [f for f in os.listdir(resource_dir_path)
+                            if f.lower().endswith(file_extensions)]
 
-            for f in audio_files:
-                key = create_meaningful_key(f)
+            for f in resource_files:
+                key = create_meaningful_key(f, resource_type)
 
                 # Ensure key is unique within the category
                 original_key = key
@@ -97,36 +101,56 @@ def get_audio_map(audio_dir, repo_base_url):
                     counter += 1
 
                 used_keys.add(key)
-                category_map[key] = f"{repo_base_url}/categories/{category_dir}/audio/{f}"
+                category_map[key] = f"{repo_base_url}/categories/{category_dir}/{resource_type}/{f}"
 
             if category_map:  # Only add non-empty categories
-                audio_map[category_dir] = category_map
+                resource_map[category_dir] = category_map
 
         except Exception as e:
-            print(f"Error processing category {category_dir}: {e}")
+            print(f"Error processing category {category_dir} for {resource_type}: {e}")
             continue
 
-    return audio_map
+    return resource_map
 
 def main():
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Set the audio directory to the categories directory
-    audio_dir = os.path.join(script_dir, 'categories')
+    # Set the categories directory
+    categories_dir = os.path.join(script_dir, 'categories')
 
     # Get the repository base URL
     repo_base_url = get_repo_base_url()
 
-    # Generate the audio map
-    audio_map = get_audio_map(audio_dir, repo_base_url)
+    # --- Generate Audio Map ---
+    print("Generating audio map...")
+    audio_map = get_resource_map(
+        categories_dir,
+        repo_base_url,
+        'audio',
+        ('.mp3', '.wav', '.ogg', '.m4a')
+    )
 
     # Write the audio map to a JSON file
-    output_file = os.path.join(script_dir, 'audio_map.json')
-    with open(output_file, 'w') as f:
+    audio_output_file = os.path.join(script_dir, 'audio_map.json')
+    with open(audio_output_file, 'w') as f:
         json.dump(audio_map, f, indent=2)
+    print(f"Audio map generated successfully at: {audio_output_file}")
 
-    print(f"Audio map generated successfully at: {output_file}")
+    # --- Generate Animations Map ---
+    print("\nGenerating animations map...")
+    animations_map = get_resource_map(
+        categories_dir,
+        repo_base_url,
+        'animations',
+        ('.js', '.json', '.gif')  # Include JavaScript, JSON (Lottie), and GIF files
+    )
+
+    # Write the animations map to a JSON file
+    animations_output_file = os.path.join(script_dir, 'animations_map.json')
+    with open(animations_output_file, 'w') as f:
+        json.dump(animations_map, f, indent=2)
+    print(f"Animations map generated successfully at: {animations_output_file}")
 
 if __name__ == "__main__":
     main()
