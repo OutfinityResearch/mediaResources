@@ -66,20 +66,25 @@ def get_repo_base_url():
 def get_audio_map(audio_dir, repo_base_url):
     audio_map = {}
 
-    # Walk through the audio directory
-    for root, dirs, files in os.walk(audio_dir):
-        category = os.path.basename(root)
-
-        # Skip the root audio directory itself
-        if category == 'audio':
+    # Walk through the categories directory
+    for category_dir in os.listdir(audio_dir):
+        category_path = os.path.join(audio_dir, category_dir)
+        if not os.path.isdir(category_path):
             continue
 
-        # Filter for audio files
-        audio_files = [f for f in files if f.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a'))]
+        audio_dir_path = os.path.join(category_path, 'audio')
 
-        if audio_files:
-            category_map = {}
-            used_keys = set()
+        # Skip if audio directory doesn't exist
+        if not os.path.exists(audio_dir_path):
+            continue
+
+        category_map = {}
+        used_keys = set()
+
+        # Get all audio files in the category's audio directory
+        try:
+            audio_files = [f for f in os.listdir(audio_dir_path)
+                         if f.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a'))]
 
             for f in audio_files:
                 key = create_meaningful_key(f)
@@ -92,32 +97,36 @@ def get_audio_map(audio_dir, repo_base_url):
                     counter += 1
 
                 used_keys.add(key)
-                category_map[key] = f"{repo_base_url}/audio/{category}/{f}"
+                category_map[key] = f"{repo_base_url}/categories/{category_dir}/audio/{f}"
 
-            audio_map[category] = category_map
+            if category_map:  # Only add non-empty categories
+                audio_map[category_dir] = category_map
+
+        except Exception as e:
+            print(f"Error processing category {category_dir}: {e}")
+            continue
 
     return audio_map
 
 def main():
-    # Get the repository base URL
-    repo_base_url = get_repo_base_url()
-
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    audio_dir = os.path.join(script_dir, 'audio')
+
+    # Set the audio directory to the categories directory
+    audio_dir = os.path.join(script_dir, 'categories')
+
+    # Get the repository base URL
+    repo_base_url = get_repo_base_url()
 
     # Generate the audio map
     audio_map = get_audio_map(audio_dir, repo_base_url)
 
-    # Output file path
+    # Write the audio map to a JSON file
     output_file = os.path.join(script_dir, 'audio_map.json')
+    with open(output_file, 'w') as f:
+        json.dump(audio_map, f, indent=2)
 
-    # Write to JSON file
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(audio_map, f, indent=2, ensure_ascii=False)
-
-    print(f"Audio map with meaningful keys generated at: {output_file}")
-    print(f"Using repository base URL: {repo_base_url}")
+    print(f"Audio map generated successfully at: {output_file}")
 
 if __name__ == "__main__":
     main()
