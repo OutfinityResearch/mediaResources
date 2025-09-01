@@ -56,15 +56,15 @@ def get_repo_base_url():
         # Convert SSH to HTTPS if needed
         if repo_url.startswith('git@github.com:'):
             repo_path = repo_url.replace('git@github.com:', '').replace('.git', '')
-            return f'https://raw.githubusercontent.com/{repo_path}/main'
+            return f'https://raw.githubusercontent.com/{repo_path}/master'
         elif repo_url.startswith('https://github.com/'):
             repo_path = repo_url.replace('https://github.com/', '').replace('.git', '')
-            return f'https://raw.githubusercontent.com/{repo_path}/main'
+            return f'https://raw.githubusercontent.com/{repo_path}/master'
     except (subprocess.CalledProcessError, Exception) as e:
         print(f"Warning: Could not determine repository URL: {e}")
 
     # Fallback to the hardcoded URL if git command fails
-    return 'https://raw.githubusercontent.com/OutfinityResearch/mediaResources/main'
+    return 'https://raw.githubusercontent.com/OutfinityResearch/mediaResources/master'
 
 def get_resource_map(categories_dir, repo_base_url, resource_type, file_extensions):
     """Generate a map for a specific resource type (e.g., audio, animations)."""
